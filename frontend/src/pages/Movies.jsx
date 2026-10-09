@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate,useSearchParams  } from "react-router-dom";
 
 import Navbar from "../components/Navbar.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -11,10 +11,14 @@ const PAGE_SIZE = 12;
 function Movies() {
   const { isDark } = useTheme();
   const { token } = useAuth();
-  const navigate = useNavigate();
 
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+const navigate = useNavigate();
+const [searchParams, setSearchParams] = useSearchParams();
+
+const initialQuery = searchParams.get("q") || "";
+
+const [search, setSearch] = useState(initialQuery);
+const [debouncedSearch, setDebouncedSearch] = useState(initialQuery);
 
   const [movies, setMovies] = useState([]);
   const [savedMovies, setSavedMovies] = useState([]);
@@ -53,6 +57,20 @@ function Movies() {
 
     return () => clearTimeout(timeoutId);
   }, [search]);
+
+  
+useEffect(() => {
+  const query = search.trim();
+
+  if ((searchParams.get("q") || "") === query) return;
+
+  if (query) {
+    setSearchParams({ q: query }, { replace: true });
+  } else {
+    setSearchParams({}, { replace: true });
+  }
+}, [search, searchParams, setSearchParams]);
+
 
   // Fetch popular movies or the first page of search results.
   useEffect(() => {
@@ -258,7 +276,7 @@ function Movies() {
             return currentMovies;
           }
 
-          const savedMovie = response.data;
+      const savedMovie = response.data?.data ?? response.data;
 
           return [
             ...currentMovies,
