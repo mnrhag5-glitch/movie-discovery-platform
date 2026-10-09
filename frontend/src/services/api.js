@@ -1,7 +1,6 @@
-
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL || "https://movie-discovery-platform-30u4.onrender.com"
-).replace(/\/$/, "");
+).replace(/\/$/, "") + "/api";
 
 // Common helper for all backend requests
 async function request(
