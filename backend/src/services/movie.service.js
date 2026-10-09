@@ -41,12 +41,14 @@ export const getMovieDetails = async (imdbId) => {
   };
 };
 
-const getMostPopularMovies = async () => {
-    const cachedMovies = cache.get("popular-movies");
 
-if (cachedMovies) {
-  return cachedMovies;
-}
+const getMostPopularMovies = async () => {
+  const cachedMovies = cache.get("popular-movies");
+
+  if (cachedMovies) {
+    return cachedMovies;
+  }
+
   const response = await fetchWithTimeout(
     "https://imdb236.p.rapidapi.com/api/imdb/most-popular-movies",
     {
@@ -59,7 +61,13 @@ if (cachedMovies) {
   );
 
   if (!response.ok) {
-   
+    console.error("RapidAPI popular movies failed:", {
+      status: response.status,
+      statusText: response.statusText,
+      remainingRequests: response.headers.get(
+        "x-ratelimit-requests-remaining",
+      ),
+    });
 
     throw createAppError(
       "Movie service is temporarily unavailable",
@@ -67,19 +75,20 @@ if (cachedMovies) {
     );
   }
 
-const data = await response.json();
+  const data = await response.json();
 
-const movies = data.map((movie) => ({
-  id: movie.id,
-  title: movie.primaryTitle,
-  description: movie.description,
-  poster: movie.primaryImage,
-}));
+  const movies = data.map((movie) => ({
+    id: movie.id,
+    title: movie.primaryTitle,
+    description: movie.description,
+    poster: movie.primaryImage,
+  }));
 
-cache.set("popular-movies", movies);
+  cache.set("popular-movies", movies);
 
-return movies;
+  return movies;
 };
+
 
 export const searchMovies = async ({ query, cursorMark, rows = 25 }) => {
   const params = new URLSearchParams({
