@@ -80,12 +80,7 @@ if (!user) {
       });
     }
 
-    if (process.env.NODE_ENV !== "development" && !user.phoneVerified) {
-  return res.status(401).json({
-    success: false,
-    message: "Invalid email or password",
-  });
-}
+
 
 
 
