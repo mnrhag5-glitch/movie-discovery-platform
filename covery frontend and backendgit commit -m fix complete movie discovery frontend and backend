@@ -1,0 +1,12 @@
+backend/src/controllers/auth.controller.js:271: trailing whitespace.
+[32m+[m[41m  [m
+backend/src/savedMovie.test.js:117: trailing whitespace.
+[32m+[m[41m    [m
+backend/src/services/movie.service.js:18: trailing whitespace.
+[32m+[m[41m  [m
+backend/src/services/movie.service.js:62: trailing whitespace.
+[32m+[m[41m   [m
+backend/src/services/movie.service.js:107: trailing whitespace.
+[32m+[m[41m   [m
+frontend/src/pages/Home.jsx:195: trailing whitespace.
+[32m+[m[41m [m

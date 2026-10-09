@@ -18,7 +18,11 @@ app.use(helmet());
 console.log("Frontend URL:", process.env.FRONTEND_URL)
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+origin: [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://movie-discovery-platform-paf2.vercel.app"
+], 
     credentials: true,
   })
 );
