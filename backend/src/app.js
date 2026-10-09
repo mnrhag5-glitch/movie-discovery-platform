@@ -11,6 +11,7 @@ import savedMovieRoutes from "./routes/savedMovie.routes.js";
 
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(errorMiddleware);
 
 app.use(helmet());
