@@ -1,7 +1,9 @@
-
+import { createAppError } from "../utils/app-error.util.js";
+import { fetchWithTimeout } from "../utils/fetch.util.js";
+import cache from "../utils/cache.util.js";
 
 export const getMovieDetails = async (imdbId) => {
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://imdb236.p.rapidapi.com/api/imdb/${imdbId}`,
     {
       method: "GET",
@@ -9,14 +11,14 @@ export const getMovieDetails = async (imdbId) => {
         "x-rapidapi-host": process.env.RAPIDAPI_HOST,
         "x-rapidapi-key": process.env.RAPIDAPI_KEY,
       },
-    }
+    },
   );
 
   if (!response.ok) {
-    const errorText = await response.text();
-
-    throw new Error(
-      `IMDb details request failed: ${response.status} ${errorText}`
+  
+    throw createAppError(
+      "Movie details service is temporarily unavailable",
+      response.status === 429 ? 429 : 502,
     );
   }
 
@@ -39,10 +41,13 @@ export const getMovieDetails = async (imdbId) => {
   };
 };
 
-
-
 const getMostPopularMovies = async () => {
-  const response = await fetch(
+    const cachedMovies = cache.get("popular-movies");
+
+if (cachedMovies) {
+  return cachedMovies;
+}
+  const response = await fetchWithTimeout(
     "https://imdb236.p.rapidapi.com/api/imdb/most-popular-movies",
     {
       method: "GET",
@@ -50,34 +55,33 @@ const getMostPopularMovies = async () => {
         "x-rapidapi-host": process.env.RAPIDAPI_HOST,
         "x-rapidapi-key": process.env.RAPIDAPI_KEY,
       },
-    }
+    },
   );
 
   if (!response.ok) {
-    const errorText = await response.text();
+   
 
-    throw new Error(
-      `IMDb API request failed: ${response.status} ${errorText}`
+    throw createAppError(
+      "Movie service is temporarily unavailable",
+      response.status === 429 ? 429 : 502,
     );
   }
 
-  const data = await response.json();
+const data = await response.json();
 
-  // IMDb response ko frontend-friendly format me convert karna
-  return data.map((movie) => ({
-    id: movie.id,
-    title: movie.primaryTitle,
-    description: movie.description,
-    poster: movie.primaryImage,
-  }));
+const movies = data.map((movie) => ({
+  id: movie.id,
+  title: movie.primaryTitle,
+  description: movie.description,
+  poster: movie.primaryImage,
+}));
+
+cache.set("popular-movies", movies);
+
+return movies;
 };
 
-
-export const searchMovies = async ({
-  query,
-  cursorMark,
-  rows = 25,
-}) => {
+export const searchMovies = async ({ query, cursorMark, rows = 25 }) => {
   const params = new URLSearchParams({
     primaryTitleAutocomplete: query,
     type: "movie",
@@ -88,7 +92,7 @@ export const searchMovies = async ({
     params.append("cursorMark", cursorMark);
   }
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://imdb236.p.rapidapi.com/api/imdb/search?${params.toString()}`,
     {
       method: "GET",
@@ -96,33 +100,34 @@ export const searchMovies = async ({
         "x-rapidapi-host": process.env.RAPIDAPI_HOST,
         "x-rapidapi-key": process.env.RAPIDAPI_KEY,
       },
-    }
+    },
   );
 
   if (!response.ok) {
-    const errorText = await response.text();
+   
 
-    throw new Error(
-      `IMDb search request failed: ${response.status} ${errorText}`
+    throw createAppError(
+      "Movie search service is temporarily unavailable",
+      response.status === 429 ? 429 : 502,
     );
   }
-const data = await response.json();
+  const data = await response.json();
 
-return {
-  rows: data.rows,
-  numFound: data.numFound,
-  nextCursorMark: data.nextCursorMark || null,
+  return {
+    rows: data.rows,
+    numFound: data.numFound,
+    nextCursorMark: data.nextCursorMark || null,
 
-  results: data.results.map((movie) => ({
-    id: movie.id,
-    title: movie.primaryTitle,
-    description: movie.description,
-    poster: movie.primaryImage,
-    year: movie.startYear,
-    rating: movie.averageRating,
-    genres: movie.genres || [],
-  })),
-};
+    results: data.results.map((movie) => ({
+      id: movie.id,
+      title: movie.primaryTitle,
+      description: movie.description,
+      poster: movie.primaryImage,
+      year: movie.startYear,
+      rating: movie.averageRating,
+      genres: movie.genres || [],
+    })),
+  };
 };
 
 export default getMostPopularMovies;
