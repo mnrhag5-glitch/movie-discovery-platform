@@ -12,7 +12,8 @@ import savedMovieRoutes from "./routes/savedMovie.routes.js";
 
 const app = express();
 app.set("trust proxy", 1);
-app.use(errorMiddleware);
+
+
 
 app.use(helmet());
 
@@ -45,5 +46,5 @@ app.get("/api/health", (req, res) => {
     message: "Movie Discovery API is running",
   });
 });
-
+app.use(errorMiddleware);
 export default app;
