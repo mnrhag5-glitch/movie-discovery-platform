@@ -12,6 +12,7 @@ import { incrementOtpAttempts } from "../utils/otp-attempt.util.js";
 
 export const signup = async (req, res, next) => {
   try {
+    console.log("SIGNUP CONTROLLER HIT");
     const { name, email, phone, password } = req.body;
    const normalizedPhone = normalizePhone(phone);
     const existingUser = await User.findOne({
@@ -307,43 +308,45 @@ export const verifyPhone = async (req, res, next) => {
   }
 };
 
+
 export const requestLoginOtp = async (req, res, next) => {
   try {
-    const { phone } = req.body;
-
-    const normalizedPhone = normalizePhone(phone);
+    const normalizedPhone = normalizePhone(req.body.phone);
 
     const user = await User.findOne({
       phone: normalizedPhone,
-      phoneVerified: true,
     });
 
-if (!user) {
-  return res.status(200).json({
-    success: true,
-    message: "If the account exists, an OTP has been sent",
-  });
-}
+    // Keep the same response for unknown numbers.
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: "If the account is eligible, an OTP will be sent",
+      });
+    }
+
+    const purpose = user.phoneVerified ? "login" : "signup";
+
     const existingChallenge = await OtpChallenge.findOne({
       phone: normalizedPhone,
-      purpose: "login",
+      purpose,
       consumedAt: null,
     }).sort({ createdAt: -1 });
 
-    if (existingChallenge) {
-      const cooldownSeconds = Number(
-        process.env.OTP_RESEND_COOLDOWN_SECONDS || 60
-      );
+    const cooldownSeconds = Number(
+      process.env.OTP_RESEND_COOLDOWN_SECONDS || 60
+    );
 
+    if (existingChallenge) {
       const elapsedSeconds =
         (Date.now() - existingChallenge.lastSentAt.getTime()) / 1000;
 
-  if (elapsedSeconds < cooldownSeconds) {
-  return res.status(200).json({
-    success: true,
-    message: "If the account exists, an OTP has been sent",
-  });
-}
+      if (elapsedSeconds < cooldownSeconds) {
+        return res.status(429).json({
+          success: false,
+          message: "Please wait before requesting another OTP",
+        });
+      }
     }
 
     const otp = generateOtp();
@@ -355,39 +358,32 @@ if (!user) {
     });
 
     await OtpChallenge.updateMany(
-      {
-        phone: normalizedPhone,
-        purpose: "login",
-        consumedAt: null,
-      },
-      {
-        $set: {
-          consumedAt: new Date(),
-        },
-      }
+      { phone: normalizedPhone, purpose, consumedAt: null },
+      { $set: { consumedAt: new Date() } }
     );
 
     await OtpChallenge.create({
       phone: normalizedPhone,
-      purpose: "login",
+      purpose,
       codeHash,
       expiresAt: new Date(
         Date.now() +
           Number(process.env.OTP_EXPIRES_MINUTES || 5) * 60 * 1000
       ),
-  attempts: 0,
-maxAttempts: Number(process.env.OTP_MAX_ATTEMPTS || 5),
+      attempts: 0,
+      maxAttempts: Number(process.env.OTP_MAX_ATTEMPTS || 5),
       lastSentAt: new Date(),
     });
 
     return res.status(200).json({
       success: true,
-      message: "OTP sent successfully",
+      message: "If the account is eligible, an OTP will be sent",
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 export const verifyLoginOtp = async (req, res, next) => {
   try {

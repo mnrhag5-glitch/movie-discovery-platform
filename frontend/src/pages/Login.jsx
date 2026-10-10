@@ -93,6 +93,7 @@ function Login() {
       setActiveAction("request-otp");
 
       await authApi.requestLoginOtp(phone);
+      setSuccess("If the account is eligible, an OTP will be sent.");
 
       setOtpSent(true);
       setPhoneForm((previous) => ({ ...previous, otp: "" }));
@@ -127,10 +128,21 @@ function Login() {
       setLoading(true);
       setActiveAction("verify-otp");
 
-      const response = await authApi.verifyLoginOtp({ phone, otp });
 
-      login(response.data);
-      navigate("/movies", { replace: true });
+const response = await authApi.verifyLoginOtp({ phone, otp });
+
+if (response.data?.phoneVerified) {
+  setOtpSent(false);
+  setPhoneForm({ phone: "", otp: "" });
+  setSuccess(
+    "Phone verified successfully. Now login with your email and password."
+  );
+  return;
+}
+
+login(response.data);
+navigate("/movies", { replace: true });
+
     } catch (submitError) {
       setError(submitError.message || "Unable to verify OTP. Please try again.");
     } finally {
