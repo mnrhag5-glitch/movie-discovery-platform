@@ -8,12 +8,16 @@ export const sendWhatsAppOtp = async ({ phone, otp }) => {
   const apiKey = process.env.WAPIX_API_KEY;
 
   if (!apiKey) {
+    console.error("[Wapix] WAPIX_API_KEY is missing");
     throw new Error("Wapix API key is missing");
   }
 
-  const response = await fetch(
-    `${WAPIX_BASE_URL}/send/otp`,
-    {
+  console.info("[Wapix] OTP request started");
+
+  let response;
+
+  try {
+    response = await fetch(`${WAPIX_BASE_URL}/send/otp`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -26,32 +30,40 @@ export const sendWhatsAppOtp = async ({ phone, otp }) => {
         api_key: apiKey,
       }),
       signal: AbortSignal.timeout(15000),
-    }
-  );
+    });
+  } catch (error) {
+    console.error("[Wapix] Network request failed:", error.message);
+    throw new Error("Unable to connect to Wapix. Please try again.");
+  }
 
   let data;
 
   try {
     data = await response.json();
   } catch {
+    console.error("[Wapix] Non-JSON response. HTTP:", response.status);
     throw new Error(
       `Wapix returned an invalid response (HTTP ${response.status})`
     );
   }
 
-
-if (!response.ok || data.success !== true) {
-  console.error("Wapix OTP failure:", {
+  console.info("[Wapix] Response received:", {
     status: response.status,
-    response: data,
+    success: data?.success === true,
+    message:
+      typeof data?.message === "string"
+        ? data.message
+        : undefined,
   });
 
-  throw new Error(
-    data.message ||
-      `Wapix OTP request failed (HTTP ${response.status})`
-  );
-}
+  if (!response.ok || data?.success !== true) {
+    throw new Error(
+      typeof data?.message === "string"
+        ? data.message
+        : `Wapix OTP request failed (HTTP ${response.status})`
+    );
+  }
 
-
+  console.info("[Wapix] OTP request accepted");
   return data;
 };
