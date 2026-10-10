@@ -39,12 +39,19 @@ export const sendWhatsAppOtp = async ({ phone, otp }) => {
     );
   }
 
-  if (!response.ok || !data.success) {
-    throw new Error(
-      data.message ||
+
+if (!response.ok || data.success !== true) {
+  console.error("Wapix OTP failure:", {
+    status: response.status,
+    response: data,
+  });
+
+  throw new Error(
+    data.message ||
       `Wapix OTP request failed (HTTP ${response.status})`
-    );
-  }
+  );
+}
+
 
   return data;
 };

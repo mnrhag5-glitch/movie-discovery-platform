@@ -513,13 +513,15 @@ if (existingChallenge) {
 
   const elapsedSeconds =
     (Date.now() - existingChallenge.lastSentAt.getTime()) / 1000;
+if (elapsedSeconds < cooldownSeconds) {
+  return res.status(429).json({
+    success: false,
+    message: `Please wait ${Math.ceil(
+      cooldownSeconds - elapsedSeconds
+    )} seconds before requesting another OTP.`,
+  });
+}
 
-  if (elapsedSeconds < cooldownSeconds) {
-    return res.status(200).json({
-      success: true,
-      message: "If the account exists, an OTP has been sent",
-    });
-  }
 }
 
     const otp = generateOtp();
