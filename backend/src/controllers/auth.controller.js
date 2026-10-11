@@ -388,12 +388,10 @@ export const requestLoginOtp = async (req, res, next) => {
 export const verifyLoginOtp = async (req, res, next) => {
   try {
     const { phone, otp } = req.body;
-
     const normalizedPhone = normalizePhone(phone);
 
     const user = await User.findOne({
       phone: normalizedPhone,
-      phoneVerified: true,
     });
 
     if (!user) {
@@ -403,32 +401,33 @@ export const verifyLoginOtp = async (req, res, next) => {
       });
     }
 
+    // Unverified users receive signup OTPs.
+    // Verified users receive login OTPs.
+    const purpose = user.phoneVerified ? "login" : "signup";
+
     const challenge = await OtpChallenge.findOne({
       phone: normalizedPhone,
-      purpose: "login",
+      purpose,
       consumedAt: null,
     })
       .select("+codeHash")
       .sort({ createdAt: -1 });
 
-    if (!challenge) {
+    if (
+      !challenge ||
+      challenge.expiresAt.getTime() <= Date.now()
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid or expired OTP",
       });
     }
 
-    if (challenge.expiresAt.getTime() <= Date.now()) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired OTP",
-      });
-    }
-
- if (challenge.attempts >= challenge.maxAttempts) {
+    if (challenge.attempts >= challenge.maxAttempts) {
       return res.status(429).json({
         success: false,
-        message: "Too many incorrect attempts. Please request a new OTP",
+        message:
+          "Too many incorrect attempts. Please request a new OTP",
       });
     }
 
@@ -437,24 +436,44 @@ export const verifyLoginOtp = async (req, res, next) => {
       challenge.codeHash
     );
 
-if (!isOtpValid) {
-  const updatedChallenge = await incrementOtpAttempts(
-    challenge._id
-  );
+    if (!isOtpValid) {
+      const updatedChallenge = await incrementOtpAttempts(
+        challenge._id
+      );
 
-  if (!updatedChallenge) {
-    return res.status(429).json({
-      success: false,
-      message: "Too many incorrect attempts. Please request a new OTP",
-    });
-  }
+      if (!updatedChallenge) {
+        return res.status(429).json({
+          success: false,
+          message:
+            "Too many incorrect attempts. Please request a new OTP",
+        });
+      }
 
-  return res.status(400).json({
-    success: false,
-    message: "Invalid or expired OTP",
-  });
-}
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP",
+      });
+    }
 
+    // Successful signup OTP verifies the phone.
+    if (purpose === "signup") {
+      user.phoneVerified = true;
+      await user.save();
+
+      challenge.consumedAt = new Date();
+      await challenge.save();
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Phone verified successfully. Please login with email and password.",
+        data: {
+          phoneVerified: true,
+        },
+      });
+    }
+
+    // Normal login OTP flow for verified users.
     challenge.consumedAt = new Date();
     await challenge.save();
 
@@ -479,6 +498,7 @@ if (!isOtpValid) {
     next(error);
   }
 };
+
 
 export const requestPasswordReset = async (req, res, next) => {
   try {
