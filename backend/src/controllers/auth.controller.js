@@ -727,7 +727,7 @@ export const resetPassword = async (req, res, next) => {
     user.passwordResetExpiresAt = null;
 
     await user.save();
-
+console.log("[Password Reset] Saved user:", user.email);
     return res.status(200).json({
       success: true,
       message: "Password reset successfully",
